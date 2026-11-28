@@ -96,3 +96,15 @@ test("聊天 API 只将有效的完整对话传给智能体，并返回其回复
   assert.equal(invalid.status, 400);
   assert.deepEqual(conversations, [messages]);
 });
+
+test("删除仍有子任务的主任务时返回冲突，并保留整组任务", async (t) => {
+  const { request, filename } = await startTestApp(t);
+  const store = createJsonTaskStore(filename);
+  const parent = store.create("论文初稿");
+  const [child] = store.createSubtasks(parent.id, [{ title: "整理文献" }]);
+
+  assert.equal((await request("DELETE", `/api/tasks/${parent.id}`)).status, 409);
+  assert.deepEqual(store.list().map(({ id }) => id), [parent.id, child.id]);
+  assert.equal((await request("DELETE", `/api/tasks/${child.id}`)).status, 204);
+  assert.equal((await request("DELETE", `/api/tasks/${parent.id}`)).status, 204);
+});

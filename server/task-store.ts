@@ -3,16 +3,39 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { dirname } from "node:path";
 import { z } from "zod";
 
-const storedTask = z.looseObject({ id: z.string(), title: z.string(), done: z.boolean() });
+export const taskPlanningFields = {
+  plannedDate: z.iso.date().optional(),
+  priority: z.enum(["high", "medium", "low"]).optional(),
+  effort: z.enum(["small", "medium", "large"]).optional(),
+};
+
+const storedTask = z.looseObject({
+  id: z.string(),
+  title: z.string(),
+  done: z.boolean(),
+  dueDate: z.iso.date().optional(), 
+  ...taskPlanningFields,
+  // 旧清单可能已用数字保存优先级，读写时保留原值。
+  priority: z.union([taskPlanningFields.priority, z.number()]),
+  parentId: z.string().optional(),
+});
 const taskList = z.array(storedTask);
 type Task = z.infer<typeof storedTask>;
-type TaskChanges = Partial<Pick<Task, "title" | "done">>;
+type TaskChanges = Partial<
+  Pick<Task, "title" | "done" | "dueDate" | "plannedDate" | "priority" | "effort">
+>;
+const taskSchedule = z.object({ dueDate: z.iso.date().optional(), ...taskPlanningFields });
+type TaskSchedule = z.infer<typeof taskSchedule>;
+type SubtaskInput = TaskSchedule & { title: string };
+
+export const protectedTaskMessage = "这个任务下还有子任务，请先删除下属子任务。";
 
 export interface TaskStore {
   list(): Task[];
-  create(title: string): Task;
+  create(title: string, dueDate?: string, plan?: Omit<TaskSchedule, "dueDate">): Task;
+  createSubtasks(parentId: string, subtasks: SubtaskInput[]): Task[];
   update(id: string, changes: TaskChanges): Task | undefined;
-  remove(id: string): boolean;
+  remove(id: string): "deleted" | "not_found" | "has_children";
 }
 
 export function createJsonTaskStore(filename: string): TaskStore {
@@ -32,12 +55,23 @@ export function createJsonTaskStore(filename: string): TaskStore {
   return {
     list,
 
-    create(title) {
-      const task = { id: randomUUID(), title, done: false };
+    create(title, dueDate, plan) {
+      const task = { id: randomUUID(), title, done: false, dueDate, ...plan };
       save([...list(), task]);
       return task;
     },
+     createSubtasks(parentId, subtasks) {
+      const tasks = list();
+      const children = subtasks.map((subtask) => ({
+        id: randomUUID(),
+        ...subtask,
+        done: false,
+        parentId,
+      }));
 
+      save([...tasks, ...children]);
+      return children;
+    },
     update(id, changes) {
       const tasks = list();
       const task = tasks.find((item) => item.id === id);
@@ -51,10 +85,11 @@ export function createJsonTaskStore(filename: string): TaskStore {
     remove(id) {
       const tasks = list();
       const remaining = tasks.filter((task) => task.id !== id);
-      if (remaining.length === tasks.length) return false;
+      if (remaining.length === tasks.length) return "not_found";
+      if (remaining.some((task) => task.parentId === id)) return "has_children";
 
       save(remaining);
-      return true;
+      return "deleted";
     },
   };
 }

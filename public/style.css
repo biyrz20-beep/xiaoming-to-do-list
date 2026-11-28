@@ -197,3 +197,63 @@ textarea {
   color: #95271e;
   margin: 0 0 8px;
 }
+
+.today-plan {
+  white-space: normal;
+}
+
+.task-detail {
+  display: block;
+  color: #475467;
+  font-size: 0.84rem;
+}
+
+.task-overdue {
+  color: #b42318;
+  font-weight: 600;
+}
+
+.task-badge {
+  display: inline-block;
+  margin-inline-start: 0.4rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 0.4rem;
+  background: #f1f3f6;
+  color: #475467;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.plan-group {
+  margin-block-start: 0.85rem;
+}
+
+.plan-group-title {
+  font-size: 0.88rem;
+  color: #475467;
+}
+
+.plan-group[data-priority="high"] .plan-group-title {
+  color: #4338ca;
+}
+
+.plan-group ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.2rem 0 0;
+}
+
+.plan-group li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.3rem 0.6rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid #eaecf0;
+}
+
+.plan-task-text {
+  flex: 1 1 9rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

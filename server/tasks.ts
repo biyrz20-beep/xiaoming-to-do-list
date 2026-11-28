@@ -1,9 +1,13 @@
 import { Router } from "express";
 import { z } from "zod";
-import type { TaskStore } from "./task-store.ts";
+import { protectedTaskMessage, type TaskStore } from "./task-store.ts";
 
-const createTaskSchema = z.strictObject({ title: z.string().trim().min(1).max(200) });
+const createTaskSchema = z.strictObject({
+  title: z.string().trim().min(1).max(200),
+  dueDate: z.iso.date().optional(),
+});
 const updateTaskSchema = createTaskSchema
+  .omit({ dueDate: true })
   .partial()
   .extend({ done: z.boolean().optional() })
   .refine((changes) => Object.keys(changes).length > 0);
@@ -20,9 +24,11 @@ export function taskRouter(tasks: TaskStore) {
   router.post("/", (req, res) => {
     const input = createTaskSchema.safeParse(req.body);
     if (!input.success) {
-      return res.status(400).json({ error: "请提供 1 至 200 个字符的任务标题。" });
+           return res.status(400).json({
+        error: "请提供 1 至 200 个字符的任务标题。截止日期可省略，填写时请使用 YYYY-MM-DD 格式。",
+      });
     }
-    res.status(201).json(tasks.create(input.data.title));
+       res.status(201).json(tasks.create(input.data.title, input.data.dueDate));
   });
 
   router.patch("/:id", (req, res) => {
@@ -37,7 +43,9 @@ export function taskRouter(tasks: TaskStore) {
   });
 
   router.delete("/:id", (req, res) => {
-    if (!tasks.remove(req.params.id)) return res.status(404).json(taskNotFound);
+    const result = tasks.remove(req.params.id);
+    if (result === "not_found") return res.status(404).json(taskNotFound);
+    if (result === "has_children") return res.status(409).json({ error: protectedTaskMessage });
     res.sendStatus(204);
   });
 

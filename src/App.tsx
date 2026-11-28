@@ -1,5 +1,5 @@
 import { useRef, useState, type KeyboardEvent } from "react";
-import type { ChatMessage } from "../shared/chat.ts";
+import type { DisplayMessage } from "../shared/chat.ts";
 import { requestReply } from "./chat-client.ts";
 import { ChatHistory } from "./ChatHistory.tsx";
 
@@ -10,7 +10,7 @@ function isSendShortcut(event: KeyboardEvent<HTMLTextAreaElement>) {
 }
 
 export default function App() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -19,14 +19,22 @@ export default function App() {
   async function send(text: string) {
     const content = text.trim();
     if (!content || pending) return;
-    const outgoing: ChatMessage[] = [...messages, { role: "user", content }];
+    const outgoing: DisplayMessage[] = [...messages, { role: "user", content }];
     setMessages(outgoing);
     setDraft("");
     setPending(true);
     setError("");
     try {
       const answer = await requestReply(outgoing);
-      setMessages([...outgoing, { role: "assistant", content: answer }]);
+      setMessages([
+        ...outgoing,
+        {
+          role: "assistant",
+          content: answer.reply,
+          taskList: answer.taskList,
+          todayPlanDate: answer.todayPlanDate,
+        },
+      ]);
     } catch (cause) {
       setMessages(messages);
       setDraft(text);

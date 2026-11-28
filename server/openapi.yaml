@@ -72,6 +72,8 @@ paths:
         "204":
           description: 删除成功，响应体为空
         "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: 该任务仍有子任务，无法删除
 components:
   schemas:
     Title:
